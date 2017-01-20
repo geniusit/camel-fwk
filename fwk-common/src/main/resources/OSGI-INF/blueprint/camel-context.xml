@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.1.0"
+    xsi:schemaLocation="
+       http://www.osgi.org/xmlns/blueprint/v1.0.0 http://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd
+       http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.1.0 http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.1.0/blueprint-cm.xsd
+       http://camel.apache.org/schema/blueprint http://camel.apache.org/schema/blueprint/camel-blueprint.xsd">
+       
+    <!-- ############################################ PROPERTIES CONFIGURATION ############################################ -->
+
+    <!-- Use fwk.common.cfg file located in KARAF_HOME/etc folder to dynamically retrieve properties -->
+    <cm:property-placeholder persistent-id="fwk.common" update-strategy="reload" />
+    
+    <!-- ################################################ BEAN DEFINITION ################################################ -->
+    <bean id="documentAggregationStrategy" class="com.oxit.flow.ws.DocumentAggregationStrategy" />
+    <bean id="documentProcessor" class="com.oxit.flow.processor.DocumentProcessor" />
+    
+    <bean id="commonUtil" class="com.oxit.flow.bean.CommonUtil" />
+
+    <!-- ############################################### CAMEL CONFIGURATION ############################################## -->
+    
+    <camelContext id="fwk-common" autoStartup="true" xmlns="http://camel.apache.org/schema/blueprint">
+    
+        <!-- ################################################# Route Definition ############################################### -->
+        
+        <!-- Save payload of an exchange on filesystem -->
+        <route id="savePayload">
+            <from uri="direct-vm:savePayload" />
+            <toD uri="file://{{resubmitPath}}${bean:commonUtil?method=getFileSeparator}?fileName=${header.processTypeName}${bean:commonUtil?method=getFileSeparator}${date:now:yyyyMMdd}${bean:commonUtil?method=getFileSeparator}${header.documentID}.xml" />
+            
+            <log message="Message : ${id} has been successfully saved on disk. Path : {{resubmitPath}}${bean:commonUtil?method=getFileSeparator}${header.processTypeName}${bean:commonUtil?method=getFileSeparator}${date:now:yyyyMMdd}${bean:commonUtil?method=getFileSeparator}${header.documentID}.xml "/>
+        </route>
+        
+        <!-- Get the payload of an exchange -->
+        <route id="getDocument">
+            <from uri="cxfrs:bean:documentServiceEndpoint" />
+            
+            <process ref="documentProcessor" />
+            
+            <pollEnrich strategyRef="documentAggregationStrategy" timeout="5000">
+                <simple>file://{{resubmitPath}}//${header.processTypeName}//${header.timestamp}?noop=true&amp;readLock=none&amp;idempotent=false&amp;fileName=${header.documentID}.xml</simple>
+            </pollEnrich>
+        </route>
+        
+    </camelContext>
+</blueprint>

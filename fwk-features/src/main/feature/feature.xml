@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<features name="karaf-fwk-${project.version}" xmlns="http://karaf.apache.org/xmlns/features/v1.3.0">
+    <repository>mvn:org.apache.activemq/activemq-karaf/${activemq.version}/xml/features</repository>
+    <repository>mvn:org.apache.camel.karaf/apache-camel/${camel.version}/xml/features</repository>
+
+    <feature name="fwk-common" version="${project.version}" install="auto">
+        <details>Enable framework common functionalities.</details>
+
+        <feature>jms</feature>
+        <feature>jndi</feature>
+        <feature>camel-blueprint</feature>
+        <feature>camel-jms</feature>
+        <feature>camel-cxf</feature>
+
+        <bundle dependency="true">mvn:com.google.guava/guava/18.0</bundle>
+        <bundle dependency="true">mvn:commons-io/commons-io/2.5</bundle>
+        <bundle dependency="true">mvn:commons-lang/commons-lang/2.6</bundle>
+
+        <bundle start-level="100">mvn:com.oxit.flow/fwk-common/${project.version}</bundle>
+        
+        <configfile finalname="${karaf.etc}/fwk.common.cfg" override="false">mvn:com.oxit.flow/fwk-common/${project.version}/cfg/fwk.common</configfile>
+    </feature>
+
+    <feature name="fwk-amq-client" version="${project.version}" install="auto">
+        <details>Instantiate an amq client.</details>
+        <feature>jms</feature>
+        <feature>jndi</feature>
+        <feature>camel-blueprint</feature>
+        <feature>activemq-client</feature>
+        <bundle start-level="75">mvn:${project.groupId}/fwk-amq-client/${project.version}</bundle>
+        
+        <configfile finalname="${karaf.etc}/fwk.connection.amq.cfg" override="false">mvn:com.oxit.flow/fwk-amq-client/${project.version}/cfg/fwk.connection.amq</configfile>
+    </feature>
+
+    <feature name="fwk-wmq-client" version="${project.version}" install="auto">
+        <details>Instantiate a wmq client.</details>
+        <feature>jms</feature>
+        <feature>jndi</feature>
+
+        <bundle start-level="50">mvn:com.ibm.mq.osgi/java/8.0.0.4</bundle>
+        <bundle start-level="50">mvn:com.ibm.mq.osgi/commonservices.j2se/8.0.0.4</bundle>
+        <bundle start-level="50">mvn:com.ibm.mq.osgi/jms.prereq/8.0.0.4</bundle>
+        <bundle start-level="50">mvn:com.ibm.mq.osgi/jms/8.0.0.4</bundle>
+        <bundle start-level="50">mvn:com.ibm.mq.osgi/nls/8.0.0.4</bundle>
+        <bundle start-level="50">mvn:com.ibm.mq.osgi/wmq.nls/8.0.0.4</bundle>
+        <bundle start-level="50">mvn:com.ibm.mq.osgi/wmq.prereq/8.0.0.4</bundle>
+        <bundle start-level="50">mvn:com.ibm.mq.osgi/wmq/8.0.0.4</bundle>
+
+        <bundle start-level="75">mvn:${project.groupId}/fwk-wmq-client/${project.version}</bundle>
+
+        <configfile finalname="${karaf.etc}/fwk.connection.wmq.cfg" override="false">mvn:com.oxit.flow/fwk-wmq-client/${project.version}/cfg/fwk.connection.wmq</configfile>
+    </feature>
+
+    <feature name="fwk-proxy-webservice" version="${project.version}" install="auto">
+        <details>Enable framework webservice proxy.</details>
+        <feature>camel-blueprint</feature>
+        <feature>camel-core</feature>
+        <feature>camel-cxf</feature>
+        <feature>camel-http</feature>
+        <feature>camel-jms</feature>
+        <feature>camel-netty4-http</feature>
+        <feature>camel-saxon</feature>
+        <feature>camel-spring</feature>
+        <feature>camel-swagger-java</feature>
+        <feature>cxf-commands</feature>
+        <feature>jms</feature>
+        <feature>jndi</feature>
+        <feature>fwk-amq-client</feature>
+        <feature>fwk-wmq-client</feature>
+
+        <bundle dependency="true">mvn:com.google.guava/guava/18.0</bundle>
+        <bundle dependency="true">mvn:commons-lang/commons-lang/2.6</bundle>
+        <bundle dependency="true">mvn:commons-io/commons-io/2.5</bundle>
+
+        <bundle start-level="100">mvn:${project.groupId}/fwk-proxy-webservice/${project.version}</bundle>
+        
+		<configfile finalname="${karaf.etc}/fwk.proxy.webservice.cfg" override="false">mvn:com.oxit.flow/fwk-proxy-webservice/${project.version}/cfg/fwk.proxy.webservice</configfile>
+        
+    </feature>
+</features>
+

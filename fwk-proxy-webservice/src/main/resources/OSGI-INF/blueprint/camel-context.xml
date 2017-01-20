@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.1.0"
+	xsi:schemaLocation="
+       http://www.osgi.org/xmlns/blueprint/v1.0.0 http://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd
+       http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.1.0 http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.1.0/blueprint-cm.xsd
+       http://camel.apache.org/schema/blueprint http://camel.apache.org/schema/blueprint/camel-blueprint.xsd">
+       
+    <!-- ############################################ PROPERTIES CONFIGURATION ############################################ -->
+    
+	<!-- Use fwk-proxy-webservice.cfg file located in KARAF_HOME/etc folder to dynamically retrieve properties -->
+	<cm:property-placeholder persistent-id="fwk.proxy.webservice" update-strategy="reload" />
+
+    <!-- ############################################### SERVICE REFERENCE ################################################# -->
+    
+    <!-- Get the ConfigurationAdmin reference in order to get the configuration (.cfg) properties of a processTypeName at runtime.
+        This is useful to know if a mappingServiceName must be called for example.
+        More info here : https://felix.apache.org/apidocs/configadmin/1.2.4/org/osgi/service/cm/ConfigurationAdmin.html -->
+    <reference id="configAdmin" interface="org.osgi.service.cm.ConfigurationAdmin" />
+    
+	<!-- ################################################# BEANS DEFINITION ############################################### -->
+    
+	<!-- Beans -->
+    <bean id="destinationInfoBean" class="com.oxit.flow.beans.DestinationInfoBean" />
+    <bean id="traceDestinationInfoBean" class="com.oxit.flow.beans.DestinationInfoBean" />
+    <bean id="traceDescriptor" class="com.oxit.flow.beans.TraceDescriptor" />
+    
+    
+    <!-- Managers -->
+    <bean id="destinationInfoManager" class="com.oxit.flow.manager.DestinationInfoManager" />
+    <bean id="traceDestinationInfoManager" class="com.oxit.flow.manager.TraceDestinationInfoManager" />
+    <bean id="traceDescriptorManager" class="com.oxit.flow.manager.TraceDescriptorManager" />
+    <bean id="traceGeneratorManager" class="com.oxit.flow.manager.TraceGeneratorManager" />
+	<bean id="enrichHeaderManager" class="com.oxit.flow.manager.EnrichHeaderManager" />
+    <bean id="configurationManager" class="com.oxit.flow.manager.ConfigurationManager" />
+	    
+    <!-- Processors -->
+	<bean id="responseProcessor" class="com.oxit.flow.processor.ResponseProcessor" />
+    <bean id="IPUtilProcessor" class="com.oxit.flow.processor.IPUtilProcessor" />
+    
+    <!-- ############################################### CAMEL CONFIGURATION ############################################## -->
+    
+	<camelContext id="fwk-proxy-webservice" errorHandlerRef="FWKProxyWebServiceErrorHandler" autoStartup="true" xmlns="http://camel.apache.org/schema/blueprint">
+	
+		<!-- Error handler definition -->	
+        <errorHandler id="FWKProxyWebServiceErrorHandler" type="DefaultErrorHandler">
+            <redeliveryPolicy   maximumRedeliveries="2" 
+                                retryAttemptedLogLevel="INFO" 
+                                redeliveryDelay="1000"
+                                backOffMultiplier="2" 
+                                useExponentialBackOff="true" 
+                                maximumRedeliveryDelay="600000"
+                                logExhaustedMessageHistory="true"  
+                                logHandled="true" />
+        </errorHandler>
+		
+		<!-- ################################################# REST configuration ############################################### -->
+		
+		<!-- In order to make it work with Swagger I had to add to host="localhost" attribute. This MUST be removed when deploying in PRODUCTION -->
+        <!-- To make it work in localhost you must set the host="localhost" attribute and remove the hostNameResolver attribute-->
+        <!-- More information here : http://camel.apache.org/rest-dsl.html -->
+		<restConfiguration component="netty4-http" host="{{http.host}}" port="{{http.port}}" apiContextPath="api-doc" enableCORS="true">
+			<dataFormatProperty key="prettyPrint" value="true" />
+			<!-- set up swagger api description -->
+			<!-- curl -X get http://localhost:8888/api-doc/fwk-proxy-webservice to get description -->
+      		<apiProperty key="api.title" value="Decathlon FWKProxyWebService" />
+      		<apiProperty key="api.description" value="Decathlon FWKProxyWebService connector" />
+      		<apiProperty key="api.contact.name" value="Decathlon Flow Team" />
+		</restConfiguration>
+		 
+		<rest path="/pub/v1/" consumes="application/xml" produces="application/xml">
+			<post uri="{processTypeName}">
+				<description>POST XML messages to FWKProxyWebService</description>
+				<param name="body" type="body" description="The payload of the message" />
+				<param name="senderID" type="header" required="true" description="The sender ID value" />
+				<param name="businessTags" type="header" required="false" description="The businessTags value" />
+				<param name="filename" type="header" required="false" description="The name of the file" />
+				<param name="documentTypeName" type="header" required="false" description="The document type name" />
+				<responseMessage code="200" message="OK" />
+				<responseMessage code="400" message="Invalid input data"/>
+				<responseMessage code="500" message="Internal server error"/>
+				<to uri="direct:ws2jms" />
+			</post>
+		</rest>
+		
+		<!-- ################################################# Route Definition ############################################### -->
+		<route id="ws2jms">
+			
+			<from uri="direct:ws2jms" />
+            
+            <!-- The Plugngo JMS API only processes TEXT message -->
+            <convertBodyTo type="java.lang.String" charset="UTF-8" />
+            
+            <!-- Set the processTypeName in the header -->
+            <setHeader headerName="processTypeName">
+                <method ref="enrichHeaderManager" method="setProcessTypeName" />
+            </setHeader>
+            
+            <!-- Set the documentID in the header -->
+           <setHeader headerName="documentID">
+                <method ref="enrichHeaderManager" method="generateDocumentID" />
+           </setHeader>
+           
+            <!-- Test if the client set a senderID value in the HTTP header when submitting a POST request -->
+            <choice>
+                <when>
+                    <simple>${header.senderID} == null</simple>
+                    <process ref="IPUtilProcessor" /> 
+                </when>
+            </choice>
+            
+            <log message="Route ${routeId} receive a new message : ${id} from ${header.senderID} with this process type name : ${header.processTypeName}" loggingLevel="INFO" />
+			 
+             <!-- Set the destination info in the destinationInfoBean -->
+            <bean ref="destinationInfoManager" method="setDestinationInfo(${header.processTypeName})" />
+            
+            <!-- Set route information in the traceDescriptor. In this way, route information won't be loose for example if an exception occurs in a mapping route -->
+            <bean ref="traceDescriptorManager" method="setTraceDescriptor(${header.processTypeName},${header.documentTypeName},${header.senderID},${header.businessTags},${header.documentID})" />
+            
+            <!-- Set the trace info in the traceInfoBean -->
+            <bean ref="traceDestinationInfoManager" method="setTraceInfo(${header.processTypeName})" />
+            
+            <!-- Save payload on FS -->            
+            <wireTap uri="direct-vm:savePayload" />
+            
+            <!-- Send the incoming message to the JMS destination --> 
+            <toD uri="${bean:destinationInfoBean?method=getProviderType}:${bean:destinationInfoBean?method=getDestinationType}:${bean:destinationInfoBean?method=getDestinationName}?exchangePattern=InOnly&amp;disableReplyTo=true" />
+
+            <!-- Send a response to the client -->
+            <process ref="responseProcessor" />
+            
+            <log message="Route ${routeId} successully sent the message : ${id} to its destination : ${bean:destinationInfoBean?method=getProviderType}:${bean:destinationInfoBean?method=getDestinationType}:${bean:destinationInfoBean?method=getDestinationName}" loggingLevel="INFO" />
+
+            <!-- When the exchange has been successfully processed (with exception or not) -->
+            <onCompletion>
+                <!-- Set a trace -->
+                <bean ref="traceGeneratorManager" method="setTrace" />
+                <!-- And send it -->
+                <wireTap uri="${bean:traceDestinationInfoBean?method=getProviderType}:${bean:traceDestinationInfoBean?method=getDestinationType}:${bean:traceDestinationInfoBean?method=getDestinationName}?exchangePattern=InOnly&amp;disableReplyTo=true" />
+           </onCompletion>
+			
+		</route>
+		
+		<route id="jms2ws">
+            <!-- Must be direct-vm transport to work with the transacted mode with BOQ Websphere! Don't use vm transport if you want to make the route transactional! -->
+			<from uri="direct-vm:jms2ws" />
+            
+                <!-- Use the Back Out Queue if the WS isn't available -->
+                <transacted ref="camelTransaction" />
+                
+				<!-- Set the documentID in the header-->
+				<setHeader headerName="documentID">
+					<method ref="enrichHeaderManager" method="generateDocumentID" />
+				</setHeader>
+                
+                <log message="Route ${routeId} receive a new message : ${id} from ${header.senderID} with this process type name : ${header.processTypeName}" loggingLevel="INFO" />
+
+                <!-- Set route information in the traceDescriptor. In this way, route information won't be loose for example if an exception occurs in a mapping route -->
+                <bean ref="traceDescriptorManager" method="setTraceDescriptor(${header.processTypeName},${header.documentTypeName},${header.senderID},${header.businessTags},${header.documentID})" />
+                
+                <!-- Set the trace info in the traceInfoBean -->
+                <bean ref="traceDestinationInfoManager" method="setTraceInfo(${header.processTypeName})" />
+                
+                <!-- Write payload on FS -->
+                <wireTap uri="direct-vm:savePayload" />
+                
+                <!-- Mapping route management -->
+                <bean ref="configurationManager" method="setMappingRouteName(${header.processTypeName})" />
+                <choice>
+                    <when>
+                        <simple>${bean:configurationManager?method=getMappingRouteName} != null</simple>
+                        <toD uri="direct-vm:${bean:configurationManager?method=getMappingRouteName}" />
+                    </when>
+                </choice>
+                
+                <!-- WS Invoker management -->
+                <bean ref="configurationManager" method="setWsInvoker(${header.processTypeName})" />
+                <!-- Let the possibility to the client to define it's own ws invoker -->
+                <choice>
+                    <when>
+                        <simple>${bean:configurationManager?method=getWsInvoker} != null</simple>
+                        <toD uri="direct-vm:${bean:configurationManager?method=getWsInvoker}" />
+                    </when>
+                    <otherwise>
+                        <setHeader headerName="CamelHttpMethod">
+                            <constant>POST</constant>
+                        </setHeader>
+                        <setHeader headerName="Content-Type">
+                            <constant>application/xml</constant>
+                        </setHeader>
+                        <bean ref="configurationManager" method="setUrl(${header.processTypeName})" />
+                        <toD uri="${bean:configurationManager?method=getUrl}" />    
+                    </otherwise>
+                </choice>
+                
+                <log message="Route ${routeId} successully sent the message : ${id} to its destination : ${bean:configurationManager?method=getUrl}" loggingLevel="INFO" />
+                
+                <!--  When the exchange has been successfully processed (with exception or not)-->
+                <onCompletion>
+                    <!-- Set a trace-->
+                    <bean ref="traceGeneratorManager" method="setTrace" />
+                    <!-- And send it -->
+                    <!-- Must be wireTap! toD doesn't work in case of error (401 for example) ... -->
+                    <wireTap uri="${bean:traceDestinationInfoBean?method=getProviderType}:${bean:traceDestinationInfoBean?method=getDestinationType}:${bean:traceDestinationInfoBean?method=getDestinationName}?exchangePattern=InOnly&amp;disableReplyTo=true" />
+                </onCompletion>
+		</route>
+	</camelContext>
+</blueprint>
