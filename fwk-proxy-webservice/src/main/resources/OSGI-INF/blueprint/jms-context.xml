@@ -36,14 +36,14 @@
 	</bean>
 
 	<!-- Define the JMS Component -->
-	<bean id="wmq" class="org.apache.camel.component.jms.JmsComponent">
+	<bean id="amq" class="org.apache.camel.component.jms.JmsComponent">
 		<property name="configuration" ref="jmsConfig" />
 	</bean>
     
 	<!-- Expose the broker as a OSGI service -->
-	<service id="broker" ref="wmq" interface="org.apache.camel.Component">
+	<service id="broker" ref="amq" interface="org.apache.camel.Component">
 		<service-properties>
-      		<entry key="provider" value="wmq" />
+      		<entry key="provider" value="amq" />
     	</service-properties>
 	</service>
 
