@@ -32,25 +32,6 @@
         <configfile finalname="${karaf.etc}/fwk.connection.amq.cfg" override="false">mvn:com.oxit.flow/fwk-amq-client/${project.version}/cfg/fwk.connection.amq</configfile>
     </feature>
 
-    <feature name="fwk-wmq-client" version="${project.version}" install="auto">
-        <details>Instantiate a wmq client.</details>
-        <feature>jms</feature>
-        <feature>jndi</feature>
-
-        <bundle start-level="50">mvn:com.ibm.mq.osgi/java/8.0.0.4</bundle>
-        <bundle start-level="50">mvn:com.ibm.mq.osgi/commonservices.j2se/8.0.0.4</bundle>
-        <bundle start-level="50">mvn:com.ibm.mq.osgi/jms.prereq/8.0.0.4</bundle>
-        <bundle start-level="50">mvn:com.ibm.mq.osgi/jms/8.0.0.4</bundle>
-        <bundle start-level="50">mvn:com.ibm.mq.osgi/nls/8.0.0.4</bundle>
-        <bundle start-level="50">mvn:com.ibm.mq.osgi/wmq.nls/8.0.0.4</bundle>
-        <bundle start-level="50">mvn:com.ibm.mq.osgi/wmq.prereq/8.0.0.4</bundle>
-        <bundle start-level="50">mvn:com.ibm.mq.osgi/wmq/8.0.0.4</bundle>
-
-        <bundle start-level="75">mvn:${project.groupId}/fwk-wmq-client/${project.version}</bundle>
-
-        <configfile finalname="${karaf.etc}/fwk.connection.wmq.cfg" override="false">mvn:com.oxit.flow/fwk-wmq-client/${project.version}/cfg/fwk.connection.wmq</configfile>
-    </feature>
-
     <feature name="fwk-proxy-webservice" version="${project.version}" install="auto">
         <details>Enable framework webservice proxy.</details>
         <feature>camel-blueprint</feature>
@@ -65,8 +46,8 @@
         <feature>cxf-commands</feature>
         <feature>jms</feature>
         <feature>jndi</feature>
+        <feature>activemq-broker-noweb</feature>
         <feature>fwk-amq-client</feature>
-        <feature>fwk-wmq-client</feature>
 
         <bundle dependency="true">mvn:com.google.guava/guava/18.0</bundle>
         <bundle dependency="true">mvn:commons-lang/commons-lang/2.6</bundle>

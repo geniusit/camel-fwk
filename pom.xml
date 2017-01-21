@@ -5,26 +5,19 @@
     <version>1.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>camel-fwk</name>
-    <description>Decathlon integration framework for camel based projects.</description>
-
-    <parent>
-        <groupId>com.decathlon</groupId>
-        <artifactId>decathlon-master-parent</artifactId>
-        <version>3.0.4</version>
-    </parent>
+    <description>Integration framework for camel based projects.</description>
   
     <scm>
-        <url>https://git.osiris.withoxylane.com/dataexchange/camel-fwk</url>
-        <connection>scm:git:ssh://git@git.osiris.withoxylane.com:dataexchange/camel-fwk</connection>
-        <developerConnection>scm:git:ssh://git@git.osiris.withoxylane.com:dataexchange/camel-fwk</developerConnection>
+        <url>https://github.com/geniusit/camel-fwk</url>
+        <connection>scm:git:ssh://git@github.com/geniusit/camel-fwk</connection>
+        <developerConnection>scm:git:ssh://git@github.com/geniusit/camel-fwk</developerConnection>
         <tag>master</tag>
     </scm>
   
     <developers>
         <developer>
-            <id>z09bdewe</id>
             <name>Bertrand Deweer</name>
-            <email>external.z09bdewe@decathlon.com</email>
+            <email>bertrand.deweer@gmail.com</email>
             <organization>UBIK-INGENIERIE</organization>
             <organizationUrl>http://www.ubik-ingenierie.com/</organizationUrl>
             <roles>
@@ -58,7 +51,6 @@
     <modules>
         <module>fwk-common</module>
         <module>fwk-amq-client</module>
-        <module>fwk-wmq-client</module>
         <module>fwk-features</module>
         <module>fwk-proxy-webservice</module>
     </modules>
